@@ -86,7 +86,7 @@ class HyperLogLog {
   auto GetValue( const TBitset& bset ) const -> uint8_t; 
 
   /** @brief bucket bits  */  
-  const int16_t n_bits;
+  const int16_t n_bits_;
   /** @brief Cardinality value. */
   size_t cardinality_;
 

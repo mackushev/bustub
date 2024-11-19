@@ -17,11 +17,11 @@ namespace bustub {
 static_assert( sizeof( hash_t ) * CHAR_BIT == BITSET_CAPACITY, "ERR in bits" );
 
 template <typename KeyType>
-HyperLogLog<KeyType>::HyperLogLog(int16_t _n_bits) :  n_bits( _n_bits ), cardinality_(0)
+HyperLogLog<KeyType>::HyperLogLog(int16_t _n_bits) :  n_bits_( _n_bits ), cardinality_(0)
 {  
-  assert( n_bits <= BITSET_CAPACITY );
+  assert( n_bits_ <= BITSET_CAPACITY );
   // fill array with zeros
-  buckets_.resize( std::pow( 2, n_bits ), 0);
+  buckets_.resize( std::pow( 2, n_bits_ ), 0);
 }
 
 template <typename KeyType>
@@ -32,7 +32,7 @@ auto HyperLogLog<KeyType>::ComputeBinary(const hash_t &hash) const -> TBitset {
 template <typename KeyType>
 auto HyperLogLog<KeyType>::PositionOfLeftmostOne(const TBitset &bset) const -> uint64_t {
   
-  const int from = bset.size() - n_bits - 1;
+  const int from = bset.size() - n_bits_ - 1;
   for ( size_t pos = from; pos >= 0; pos-- ) {
     if ( bset[pos] ) {
       return from - pos + 1;
@@ -50,7 +50,7 @@ auto HyperLogLog<KeyType>::GetValue(const TBitset &bset) const -> uint8_t {
 
 template <typename KeyType>
 auto HyperLogLog<KeyType>::GetRegister(const TBitset &bset) const -> size_t {
-  return ( bset >> static_cast<size_t>( bset.size() - n_bits ) ).to_ulong();
+  return ( bset >> static_cast<size_t>( bset.size() - n_bits_ ) ).to_ulong();
 }
 
 template <typename KeyType>
