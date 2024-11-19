@@ -1,6 +1,9 @@
 #pragma once
 
+#include <_types/_uint8_t.h>
+#include <array>
 #include <bitset>
+#include <cstddef>
 #include <memory>
 #include <mutex>  // NOLINT
 #include <string>
@@ -18,6 +21,7 @@ template <typename KeyType>
 class HyperLogLog {
   /** @brief Constant for HLL. */
   static constexpr double CONSTANT = 0.79402;
+  using TBitset = std::bitset<BITSET_CAPACITY>;
 
  public:
   /** @brief Disable default constructor. */
@@ -69,7 +73,7 @@ class HyperLogLog {
    * @param[in] hash
    * @returns binary of a given hash
    */
-  auto ComputeBinary(const hash_t &hash) const -> std::bitset<BITSET_CAPACITY>;
+  auto ComputeBinary(const hash_t &hash) const -> TBitset;
 
   /**
    * @brief Function that computes leading zeros.
@@ -77,12 +81,17 @@ class HyperLogLog {
    * @param[in] bset - binary values of a given bitset
    * @returns leading zeros of given binary set
    */
-  auto PositionOfLeftmostOne(const std::bitset<BITSET_CAPACITY> &bset) const -> uint64_t;
+  auto PositionOfLeftmostOne(const TBitset& bset) const -> uint64_t;
+  auto GetRegister( const TBitset& bset ) const -> size_t;
+  auto GetValue( const TBitset& bset ) const -> uint8_t; 
 
+  /** @brief bucket bits  */  
+  const int16_t n_bits;
   /** @brief Cardinality value. */
   size_t cardinality_;
 
-  /** @todo (student) can add their data structures that support HyperLogLog */
+  /** @brief bucket storage. */
+  std::vector<std::uint8_t> buckets_;
 };
 
 }  // namespace bustub
