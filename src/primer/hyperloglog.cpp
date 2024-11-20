@@ -1,5 +1,4 @@
 #include "primer/hyperloglog.h"
-#include <sys/_types/_int16_t.h>
 
 #include <numeric>
 #include <cmath>
