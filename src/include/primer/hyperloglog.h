@@ -79,11 +79,11 @@ class HyperLogLog {
    * @param[in] bset - binary values of a given bitset
    * @returns leading zeros of given binary set
    */
-  auto PositionOfLeftmostOne(const TBitset& bset) const -> uint64_t;
-  auto GetRegister( const TBitset& bset ) const -> size_t;
-  auto GetValue( const TBitset& bset ) const -> uint8_t; 
+  auto PositionOfLeftmostOne(const TBitset &bset) const -> uint64_t;
+  auto GetRegister(const TBitset &bset) const -> size_t;
+  auto GetValue(const TBitset &bset) const -> uint8_t;
 
-  /** @brief bucket bits  */  
+  /** @brief bucket bits  */
   const int16_t n_bits_;
   /** @brief Cardinality value. */
   size_t cardinality_;

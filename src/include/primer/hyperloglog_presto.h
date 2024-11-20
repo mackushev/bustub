@@ -14,8 +14,6 @@
 #define DENSE_BUCKET_SIZE 4
 /** @brief Overflow bucket size. */
 #define OVERFLOW_BUCKET_SIZE 3
-/** @brief Capacity of the bitset stream. */
-#define BITSET_CAPACITY 64
 
 /** @brief Total bucket size. */
 #define TOTAL_BUCKET_SIZE (DENSE_BUCKET_SIZE + OVERFLOW_BUCKET_SIZE)
@@ -32,7 +30,7 @@ class HyperLogLogPresto {
 
   /** @brief Constant for HLL. */
   static constexpr double CONSTANT = 0.79402;
-  using TValue = std::tuple<size_t, u_int8_t, u_int8_t >; // register, value ( 4 bits ), overflow ( 3 bits )
+  using TValue = std::tuple<size_t, u_int8_t, u_int8_t>;  // register, value ( 4 bits ), overflow ( 3 bits )
 
  public:
   /** @brief Disabling default constructor. */
@@ -88,9 +86,8 @@ class HyperLogLogPresto {
   const int16_t n_leading_bits_;
 
   // Get bucket value ( with overload )
-  auto GetValue( size_t bucket ) const -> u_int8_t;
-  auto PutValue( size_t bucket, u_int8_t value ) -> void;
-
+  auto GetValue(size_t bucket) const -> u_int8_t;
+  auto PutValue(size_t bucket, u_int8_t value) -> void;
 };
 
 }  // namespace bustub
