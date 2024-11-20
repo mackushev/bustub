@@ -1,13 +1,15 @@
 #include "primer/hyperloglog.h"
+#include <sys/_types/_int16_t.h>
 
 #include <numeric>
+#include <cmath>
 
 namespace bustub {
 
 static_assert( sizeof( hash_t ) * CHAR_BIT == BITSET_CAPACITY, "ERR in bits" );
 
 template <typename KeyType>
-HyperLogLog<KeyType>::HyperLogLog(int16_t _n_bits) :  n_bits_( _n_bits ), cardinality_(0)
+HyperLogLog<KeyType>::HyperLogLog(int16_t _n_bits) :  n_bits_( std::max<int16_t>(0, _n_bits) ), cardinality_(0)
 {  
   assert( n_bits_ <= BITSET_CAPACITY );
   // fill array with zeros

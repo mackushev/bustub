@@ -23,7 +23,7 @@ auto ExtractValue( hash_t hash, u_int8_t n_leading_bits) -> std::tuple<size_t, u
 }
 
 template <typename KeyType>
-HyperLogLogPresto<KeyType>::HyperLogLogPresto(int16_t n_leading_bits) : cardinality_(0), n_leading_bits_(n_leading_bits)
+HyperLogLogPresto<KeyType>::HyperLogLogPresto(int16_t n_leading_bits) : cardinality_(0), n_leading_bits_(std::max<int16_t>(0, n_leading_bits))
 {
   dense_bucket_.resize( std::pow( 2, n_leading_bits_) );
 }
