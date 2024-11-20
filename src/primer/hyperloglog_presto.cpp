@@ -4,7 +4,7 @@ namespace bustub {
 
 
 static  
-auto extract_value( hash_t hash, u_int8_t n_leading_bits) -> std::tuple<size_t, u_int8_t>
+auto ExtractValue( hash_t hash, u_int8_t n_leading_bits) -> std::tuple<size_t, u_int8_t>
 {
   // bucket 
   const auto value_capacity = static_cast<size_t>( BITSET_CAPACITY - n_leading_bits );
@@ -34,7 +34,7 @@ auto HyperLogLogPresto<KeyType>::AddElem(KeyType val) -> void {
   size_t buket = 0;
   u_int8_t value = 0;
 
-  std::tie( buket, value ) = extract_value(CalculateHash(val), n_leading_bits_);
+  std::tie( buket, value ) = ExtractValue(CalculateHash(val), n_leading_bits_);
 
   if ( value > GetValue( buket ) ) {
     PutValue(buket, value);
@@ -58,11 +58,11 @@ auto HyperLogLogPresto<T>::GetValue( size_t bucket ) const -> u_int8_t
 template <typename T>
 auto HyperLogLogPresto<T>::PutValue( size_t bucket, u_int8_t value ) -> void 
 {
-  dense_bucket_[ bucket ] = std::move( std::bitset<DENSE_BUCKET_SIZE>{value} ); 
+  dense_bucket_[ bucket ] = std::bitset<DENSE_BUCKET_SIZE>{value}; 
   const u_int8_t overflow = ( static_cast<u_int8_t>(value) >> DENSE_BUCKET_SIZE );
 
   if ( overflow != 0 ) {
-    overflow_bucket_[bucket] = std::move( std::bitset<OVERFLOW_BUCKET_SIZE>{overflow } );
+    overflow_bucket_[bucket] = std::bitset<OVERFLOW_BUCKET_SIZE>{overflow };
   }
 
 }
