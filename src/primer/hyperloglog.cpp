@@ -1,16 +1,6 @@
 #include "primer/hyperloglog.h"
 
-#include <_types/_uint64_t.h>
-#include <cassert>
-#include <climits>
-#include <cmath>
-#include <cstddef>
-#include <iterator>
-#include <algorithm>
 #include <numeric>
-
-#include "common/util/hash_util.h"
-#include "fmt/format.h"
 
 namespace bustub {
 
