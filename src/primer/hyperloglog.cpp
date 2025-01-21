@@ -1,3 +1,15 @@
+//===----------------------------------------------------------------------===//
+//
+//                         BusTub
+//
+// hyperloglog.cpp
+//
+// Identification: src/primer/hyperloglog.cpp
+//
+// Copyright (c) 2015-2025, Carnegie Mellon University Database Group
+//
+//===----------------------------------------------------------------------===//
+
 #include "primer/hyperloglog.h"
 
 #include <cmath>
@@ -7,6 +19,7 @@ namespace bustub {
 
 static_assert(sizeof(hash_t) * CHAR_BIT == BITSET_CAPACITY, "ERR in bits");
 
+/** @brief Parameterized constructor. */
 template <typename KeyType>
 HyperLogLog<KeyType>::HyperLogLog(int16_t _n_bits) : n_bits_(std::max<int16_t>(0, _n_bits)), cardinality_(0) {
   assert(n_bits_ <= BITSET_CAPACITY);
@@ -14,11 +27,23 @@ HyperLogLog<KeyType>::HyperLogLog(int16_t _n_bits) : n_bits_(std::max<int16_t>(0
   buckets_.resize(std::pow(2, n_bits_), 0);
 }
 
+/**
+ * @brief Function that computes binary.
+ *
+ * @param[in] hash
+ * @returns binary of a given hash
+ */
 template <typename KeyType>
 auto HyperLogLog<KeyType>::ComputeBinary(const hash_t &hash) const -> TBitset {
   return {hash};
 }
 
+/**
+ * @brief Function that computes leading zeros.
+ *
+ * @param[in] bset - binary values of a given bitset
+ * @returns leading zeros of given binary set
+ */
 template <typename KeyType>
 auto HyperLogLog<KeyType>::PositionOfLeftmostOne(const TBitset &bset) const -> uint64_t {
   const int from = bset.size() - n_bits_ - 1;
@@ -30,6 +55,11 @@ auto HyperLogLog<KeyType>::PositionOfLeftmostOne(const TBitset &bset) const -> u
   return 0;
 }
 
+/**
+ * @brief Adds a value into the HyperLogLog.
+ *
+ * @param[in] val - value that's added into hyperloglog
+ */
 template <typename KeyType>
 auto HyperLogLog<KeyType>::GetValue(const TBitset &bset) const -> uint8_t {
   const auto v = PositionOfLeftmostOne(bset);
@@ -55,6 +85,9 @@ auto HyperLogLog<KeyType>::AddElem(KeyType val) -> void {
   buckets_[pos] = std::max(buckets_[pos], value);
 }
 
+/**
+ * @brief Function that computes cardinality.
+ */
 template <typename KeyType>
 auto HyperLogLog<KeyType>::ComputeCardinality() -> void {
   const double devider = std::accumulate(buckets_.begin(), buckets_.end(), (double).0,

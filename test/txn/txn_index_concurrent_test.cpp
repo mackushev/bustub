@@ -1,3 +1,15 @@
+//===----------------------------------------------------------------------===//
+//
+//                         BusTub
+//
+// txn_index_concurrent_test.cpp
+//
+// Identification: test/txn/txn_index_concurrent_test.cpp
+//
+// Copyright (c) 2015-2025, Carnegie Mellon University Database Group
+//
+//===----------------------------------------------------------------------===//
+
 #include <chrono>  // NOLINT
 #include <exception>
 #include <memory>
@@ -150,7 +162,8 @@ TEST(TxnIndexTest, DISABLED_IndexConcurrentUpdateTest) {  // NOLINT
           if (add_delete_insert) {
             StringVectorWriter data_writer;
             BUSTUB_ENSURE(bustub->ExecuteSqlTxn(generate_select_sql(i), data_writer, txn), "cannot retrieve data");
-            BUSTUB_ENSURE(data_writer.values_.size() == 1, "more than 1 row fetched??");
+            BUSTUB_ENSURE(!data_writer.values_.empty(), "no row fetched??");
+            BUSTUB_ENSURE(data_writer.values_.size() == 1, "more than one row fetched??");
             const auto b_val = std::stoi(data_writer.values_[0][0]);
             BUSTUB_ENSURE(bustub->ExecuteSqlTxn(generate_delete_sql(i), data_writer, txn), "cannot delete data");
             BUSTUB_ENSURE(bustub->ExecuteSqlTxn(generate_txn_insert_sql(b_val, i), data_writer, txn),

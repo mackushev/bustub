@@ -1,3 +1,15 @@
+//===----------------------------------------------------------------------===//
+//
+//                         BusTub
+//
+// hyperloglog_presto.cpp
+//
+// Identification: src/primer/hyperloglog_presto.cpp
+//
+// Copyright (c) 2015-2025, Carnegie Mellon University Database Group
+//
+//===----------------------------------------------------------------------===//
+
 #include "primer/hyperloglog_presto.h"
 
 namespace bustub {
@@ -22,12 +34,14 @@ static auto ExtractValue(hash_t hash, u_int8_t n_leading_bits) -> std::tuple<siz
   return std::make_pair(bucket, pos);
 }
 
+/** @brief Parameterized constructor. */
 template <typename KeyType>
 HyperLogLogPresto<KeyType>::HyperLogLogPresto(int16_t n_leading_bits)
     : cardinality_(0), n_leading_bits_(std::max<int16_t>(0, n_leading_bits)) {
   dense_bucket_.resize(std::pow(2, n_leading_bits_));
 }
 
+/** @brief Element is added for HLL calculation. */
 template <typename KeyType>
 auto HyperLogLogPresto<KeyType>::AddElem(KeyType val) -> void {
   size_t buket = 0;
@@ -63,6 +77,7 @@ auto HyperLogLogPresto<T>::PutValue(size_t bucket, u_int8_t value) -> void {
   }
 }
 
+/** @brief Function to compute cardinality. */
 template <typename T>
 auto HyperLogLogPresto<T>::ComputeCardinality() -> void {
   double devider = .0;

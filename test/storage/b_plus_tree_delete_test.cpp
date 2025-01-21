@@ -6,7 +6,7 @@
 //
 // Identification: test/storage/b_plus_tree_delete_test.cpp
 //
-// Copyright (c) 2015-2024, Carnegie Mellon University Database Group
+// Copyright (c) 2015-2025, Carnegie Mellon University Database Group
 //
 //===----------------------------------------------------------------------===//
 
@@ -81,6 +81,13 @@ TEST(BPlusTreeTests, DISABLED_DeleteTestNoIterator) {
     }
   }
   EXPECT_EQ(size, 1);
+
+  // Remove the remaining key
+  index_key.SetFromInteger(2);
+  tree.Remove(index_key);
+  auto root_page_id = tree.GetRootPageId();
+  ASSERT_EQ(root_page_id, INVALID_PAGE_ID);
+
   delete bpm;
 }
 
