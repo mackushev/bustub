@@ -17,3 +17,8 @@ add_library(
 set(ALL_OBJECT_FILES
     ${ALL_OBJECT_FILES} $<TARGET_OBJECTS:bustub_type>
     PARENT_SCOPE)
+
+set_source_files_properties(
+    timestamp_type.cpp
+    PROPERTIES COMPILE_FLAGS "-Wno-error=format-truncation"
+)

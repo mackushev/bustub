@@ -12,6 +12,7 @@
 
 #pragma once
 
+#include <array>
 #include <bitset>
 #include <memory>
 #include <mutex>  // NOLINT
@@ -30,6 +31,7 @@ template <typename KeyType>
 class HyperLogLog {
   /** @brief Constant for HLL. */
   static constexpr double CONSTANT = 0.79402;
+  using TBitset = std::bitset<BITSET_CAPACITY>;
 
  public:
   /** @brief Disable default constructor. */
@@ -69,10 +71,16 @@ class HyperLogLog {
 
   auto PositionOfLeftmostOne(const std::bitset<BITSET_CAPACITY> &bset) const -> uint64_t;
 
+  auto GetRegister(const TBitset &bset) const -> size_t;
+  auto GetValue(const TBitset &bset) const -> uint8_t;
+
+  /** @brief bucket bits  */
+  const int16_t n_bits_;
   /** @brief Cardinality value. */
   size_t cardinality_;
 
-  /** @todo (student) can add their data structures that support HyperLogLog */
+  /** @brief bucket storage. */
+  std::vector<std::uint8_t> buckets_;
 };
 
 }  // namespace bustub

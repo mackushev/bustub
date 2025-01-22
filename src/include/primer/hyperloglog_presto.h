@@ -13,7 +13,6 @@
 #pragma once
 
 #include <bitset>
-#include <memory>
 #include <mutex>  // NOLINT
 #include <sstream>
 #include <string>
@@ -43,6 +42,7 @@ class HyperLogLogPresto {
 
   /** @brief Constant for HLL. */
   static constexpr double CONSTANT = 0.79402;
+  using TValue = std::tuple<size_t, u_int8_t, u_int8_t>;  // register, value ( 4 bits ), overflow ( 3 bits )
 
  public:
   /** @brief Disabling default constructor. */
@@ -92,6 +92,11 @@ class HyperLogLogPresto {
   uint64_t cardinality_;
 
   // TODO(student) - can add more data structures as required
+  const int16_t n_leading_bits_;
+
+  // Get bucket value ( with overload )
+  auto GetValue(size_t bucket) const -> u_int8_t;
+  auto PutValue(size_t bucket, u_int8_t value) -> void;
 };
 
 }  // namespace bustub
