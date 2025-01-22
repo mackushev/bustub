@@ -47,8 +47,8 @@ auto HyperLogLog<KeyType>::ComputeBinary(const hash_t &hash) const -> TBitset {
 template <typename KeyType>
 auto HyperLogLog<KeyType>::PositionOfLeftmostOne(const TBitset &bset) const -> uint64_t {
   const int from = bset.size() - n_bits_ - 1;
-  for (size_t pos = from; pos >= 0; pos--) {
-    if (bset[pos]) {
+  for (int pos = from; pos >= 0; pos--) {
+    if (bset[static_cast<size_t>(pos)]) {
       return from - pos + 1;
     }
   }
