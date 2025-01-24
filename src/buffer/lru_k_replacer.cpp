@@ -13,7 +13,37 @@
 #include "buffer/lru_k_replacer.h"
 #include "common/exception.h"
 
+#include <algorithm>
+
 namespace bustub {
+
+
+LRUKReplacer::EvictedAge::EvictedAge(const LRUKNode& node, size_t k) : 
+    fid_( node.fid_ )
+{
+    lAccess_ = node.history_.front();
+    if( node.hCount_ >= k ) {
+        kAccess_ = node.history_.back();
+    }
+}
+
+bool LRUKReplacer::EvictedAge::operator<( const LRUKReplacer::EvictedAge& other) const
+{
+    if ( kAccess_.has_value() ) {
+        if ( other.kAccess_.has_value() ) {
+            BUSTUB_ASSERT( kAccess_ != other.kAccess_, "Invariant kAccess failed" );
+            return kAccess_ < other.kAccess_;
+        }
+        // inf in other, not inf here  
+        return true;
+    } else if(  other.kAccess_.has_value() ) {
+        // inf here, not inf there 
+        return false;
+    }
+    // inf here, inf there, mru
+    BUSTUB_ASSERT( lAccess_ != other.lAccess_, "Invariant lAccess failed" );
+    return lAccess_ > other.lAccess_;
+}
 
 /**
  *
@@ -39,7 +69,22 @@ LRUKReplacer::LRUKReplacer(size_t num_frames, size_t k) : replacer_size_(num_fra
  *
  * @return true if a frame is evicted successfully, false if no frames can be evicted.
  */
-auto LRUKReplacer::Evict() -> std::optional<frame_id_t> { return std::nullopt; }
+auto LRUKReplacer::Evict() -> std::optional<frame_id_t>
+{ 
+    // check if we have smth to evict
+    if ( evictable.empty() ) {
+        return std::nullopt;
+    }
+    
+    // extract pretendent from evictable queue
+    std::pop_heap( evictable.begin(), evictable.end() );
+    const auto to_evict = evictable.back();
+    evictable.pop_back();
+    
+    // extract from node store
+    node_store_.erase( to_evict.fid_ );
+    return to_evict.fid_;
+}
 
 /**
  * TODO(P1): Add implementation
@@ -54,7 +99,34 @@ auto LRUKReplacer::Evict() -> std::optional<frame_id_t> { return std::nullopt; }
  * @param access_type type of access that was received. This parameter is only needed for
  * leaderboard tests.
  */
-void LRUKReplacer::RecordAccess(frame_id_t frame_id, [[maybe_unused]] AccessType access_type) {}
+void LRUKReplacer::RecordAccess(frame_id_t frame_id, [[maybe_unused]] AccessType access_type)
+{
+    // 0! increase time  
+    const int accessTime = current_timestamp_.fetch_add( 1 ); 
+
+    // try to add new frame  
+    auto [i, iniserted] = node_store_.emplace( frame_id, LRUKNode(frame_id, accessTime) );
+    
+    // if already existed - add access history (and check if its not evictable)
+    if ( not iniserted ) {
+        
+        // register new access
+        i->second.history_.push_front( accessTime );
+
+        if( i->second.hCount_ >= k_ ) {
+            i->second.history_.pop_back();
+        } else {
+            i->second.hCount_ += 1;
+        }
+
+        //  if frame is in evictable list - need to be repositioned 
+        if ( i->second.is_evictable_ ) {
+            removeEvictable( i->second.fid_ );
+            addEvictable( i->second );
+        }   
+    }
+
+}
 
 /**
  * TODO(P1): Add implementation
@@ -73,7 +145,28 @@ void LRUKReplacer::RecordAccess(frame_id_t frame_id, [[maybe_unused]] AccessType
  * @param frame_id id of frame whose 'evictable' status will be modified
  * @param set_evictable whether the given frame is evictable or not
  */
-void LRUKReplacer::SetEvictable(frame_id_t frame_id, bool set_evictable) {}
+void LRUKReplacer::SetEvictable( frame_id_t frame_id, bool set_evictable)
+{
+    // find what to check  
+    auto pos = node_store_.find(frame_id);
+    BUSTUB_ASSERT( pos != node_store_.end(), "frame to evict is not registered");
+
+    //  check if state is not changed
+    if ( pos->second.is_evictable_ == set_evictable ) {
+        return;
+    }
+
+    if ( set_evictable ) {
+        // need to add to evictable heap. 
+        pos->second.is_evictable_ = true;
+        addEvictable( pos->second );
+    } else {
+        // need to remove from evictable heap.
+        pos->second.is_evictable_ = false;
+        removeEvictable( pos->second.fid_ );
+    }
+
+}
 
 /**
  * TODO(P1): Add implementation
@@ -92,7 +185,15 @@ void LRUKReplacer::SetEvictable(frame_id_t frame_id, bool set_evictable) {}
  *
  * @param frame_id id of frame to be removed
  */
-void LRUKReplacer::Remove(frame_id_t frame_id) {}
+void LRUKReplacer::Remove(frame_id_t frame_id)
+{
+    auto pos = node_store_.find(frame_id);
+    BUSTUB_ASSERT( pos != node_store_.end(), "frame to evict is not registered");
+    if ( pos->second.is_evictable_ ) {
+        removeEvictable( pos->second.fid_ );
+    }
+    node_store_.erase(pos->first);
+}
 
 /**
  * TODO(P1): Add implementation
@@ -101,6 +202,27 @@ void LRUKReplacer::Remove(frame_id_t frame_id) {}
  *
  * @return size_t
  */
-auto LRUKReplacer::Size() -> size_t { return 0; }
+auto LRUKReplacer::Size() -> size_t 
+{
+    return evictable.size();    
+}
+
+void LRUKReplacer::removeEvictable( frame_id_t fid )
+{
+    auto at = std::find_if( evictable.begin(), evictable.end(), [&fid](const auto& i) { return i.fid_ == fid; });
+    *at = evictable.back();
+    evictable.pop_back();
+    if ( !evictable.empty() ) {
+        std::make_heap( evictable.begin(), evictable.end() );
+    }
+}
+
+void LRUKReplacer::addEvictable( const LRUKNode& node )
+{
+    BUSTUB_ASSERT( node.is_evictable_, "no message");
+    evictable.emplace_back( node, k_ );
+    std::make_heap( evictable.begin(), evictable.end() );
+    BUSTUB_ASSERT( std::is_heap(evictable.begin(), evictable.end()), "heap check" );
+}
 
 }  // namespace bustub
