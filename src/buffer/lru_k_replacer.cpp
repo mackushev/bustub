@@ -17,31 +17,27 @@
 
 namespace bustub {
 
-// one is older than two
-static bool older(const LRUKAge& one, const LRUKAge& two) 
-{
-    if ( one.kAccess_.has_value() ) {
-        if ( two.kAccess_.has_value() ) {
-            BUSTUB_ASSERT( one.kAccess_ != two.kAccess_, "Invariant kAccess failed" );
-            // older is one that created earlier
-            return one.kAccess_ < two.kAccess_;
-        }
-        // inf in two, !inf in one. two is older.   
-        return false;
-    } else if( two.kAccess_.has_value() ) {
-        // inf in one, !inf at two. one is older  
-        return true;
-    }
-
-    // inf here, inf there, mru
-    BUSTUB_ASSERT( one.lAccess_ != two.lAccess_, "Invariant lAccess failed" );
-    return one.lAccess_ < two.lAccess_;
-}
 
 // this < other means. 
 bool LRUKAge::operator<( const LRUKAge& other) const
 {
-    return older(other, *this);
+    if ( kAccess_.has_value() ) {
+        if ( other.kAccess_.has_value() ) {
+            BUSTUB_ASSERT( kAccess_ != other.kAccess_, "Invariant kAccess failed" );
+            // less is one that created later
+            return kAccess_ > other.kAccess_;
+        }
+        // inf in other, !inf here. other is older.   
+        return true;
+    } else if( other.kAccess_.has_value() ) {
+        // inf here, !inf at other, here older and bigger  
+        return false;
+    }
+
+    // inf here, inf there, mru
+    BUSTUB_ASSERT( lAccess_ != other.lAccess_, "Invariant lAccess failed" );
+    return lAccess_ > other.lAccess_;
+
 }
 
 /**
