@@ -27,7 +27,11 @@
 #include <numeric>
 #include "gtest/gtest.h"
 
+#include "test_parallel.h"
+
 namespace bustub {
+
+using namespace std::chrono_literals;
 
 bool operator>(const LRUKAge& one, const LRUKAge& two)
 {
@@ -186,6 +190,62 @@ TEST(LRUKReplacerTest, SampleTest) {
   // Make sure that setting a non-existent frame as evictable or non-evictable doesn't do something strange.
   lru_replacer.SetEvictable(6, false);
   lru_replacer.SetEvictable(6, true);
+}
+
+class randomizer {
+  public:
+  randomizer(int n) : 
+    gen(  rd() ),
+    distrib(0, n-1)
+  {
+
+  }
+
+  int generate() {
+    return distrib(gen);
+  }
+
+  private:
+  std::random_device rd;  
+  std::mt19937 gen;
+  std::uniform_int_distribution<> distrib;
+
+};
+
+TEST( LRUKReplacerTest, ParallelTest )
+{
+  constexpr auto maxCount = 100;
+  LRUKReplacer lru_replacer(maxCount, 5);
+  randomizer r( maxCount );
+
+  testing::TestParallelExecutor executor;
+  executor.AddTest( 
+  [&r, &lru_replacer]
+    { 
+      lru_replacer.RecordAccess( r.generate() );
+    }, 
+  100 );
+  executor.AddTest( 
+  [&lru_replacer]
+    { 
+      lru_replacer.Evict(  );
+    }, 
+  1 );
+  executor.AddTest( 
+  [&r, &lru_replacer]
+    { 
+      lru_replacer.SetEvictable( r.generate(), true);
+    }, 
+  5 );
+  executor.AddTest( 
+  [&r, &lru_replacer]
+    { 
+      lru_replacer.SetEvictable( r.generate(), false);
+    }, 
+  5 );
+
+  EXPECT_TRUE( executor.Run( 5s ) );
+
 }
 
 }  // namespace bustub
