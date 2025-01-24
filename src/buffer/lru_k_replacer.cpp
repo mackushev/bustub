@@ -144,11 +144,12 @@ void LRUKReplacer::SetEvictable( frame_id_t frame_id, bool set_evictable)
 {
     // find what to check  
     auto pos = node_store_.find(frame_id);
+    // just ignore not accesses pages 
     if( pos == node_store_.end()) {
         return;
     }
 
-    //  check if state is not changed
+    //  check if state is not changed ( behaviour from from test )
     if ( pos->second.is_evictable_ == set_evictable ) {
         return;
     }

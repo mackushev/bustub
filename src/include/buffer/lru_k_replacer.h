@@ -106,14 +106,4 @@ class LRUKReplacer {
   void addEvictable( const LRUKNode& node );
 };
 
-/*
-  Идея: 
-    map владеет описанием страницы + историей.  
-    recordAccess невозможен для evictable элементов.
-    setEvicatble конструирует EvictedAge и помещает ее в список evictable 
-    evictable - min heap с кандидатом на evict на вершине, evict просто чистит то что на вершине 
-    произвольное удаление из evictable пока неэффективное, потом можно будет добавить игнор. 
-*/
-
-
 }  // namespace bustub
