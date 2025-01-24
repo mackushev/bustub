@@ -43,6 +43,15 @@ class LRUKNode {
   friend class LRUKReplacer;
 };
 
+struct LRUKAge {
+
+  bool operator<(const LRUKAge& other) const;
+  
+  frame_id_t fid_;
+  size_t lAccess_;
+  std::optional<size_t> kAccess_;
+};
+
 
 /**
  * LRUKReplacer implements the LRU-k replacement policy.
@@ -79,15 +88,6 @@ class LRUKReplacer {
   auto Size() -> size_t;
 
  private:
-  struct EvictedAge {
-    EvictedAge( const LRUKNode& node, size_t k );
-
-    bool operator < (const EvictedAge& other) const;
-
-    frame_id_t fid_;
-    std::optional<size_t> kAccess_;
-    size_t lAccess_;
-  };
 
   [[maybe_unused]] size_t curr_size_{0};
   [[maybe_unused]] size_t replacer_size_{0};
@@ -99,8 +99,8 @@ class LRUKReplacer {
   std::atomic<size_t> current_timestamp_{0};
   // stores all not removed or evicted nodes info (with history)
   std::unordered_map<frame_id_t, LRUKNode> node_store_;
-  // Evicted heap 
-  std::vector< EvictedAge > evictable;
+  // Evicted heap
+  std::vector< LRUKAge > evictable;
 
   void removeEvictable( frame_id_t node );
   void addEvictable( const LRUKNode& node );

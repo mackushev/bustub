@@ -17,32 +17,31 @@
 
 namespace bustub {
 
-
-LRUKReplacer::EvictedAge::EvictedAge(const LRUKNode& node, size_t k) : 
-    fid_( node.fid_ )
+// one is older than two
+static bool older(const LRUKAge& one, const LRUKAge& two) 
 {
-    lAccess_ = node.history_.front();
-    if( node.hCount_ >= k ) {
-        kAccess_ = node.history_.back();
+    if ( one.kAccess_.has_value() ) {
+        if ( two.kAccess_.has_value() ) {
+            BUSTUB_ASSERT( one.kAccess_ != two.kAccess_, "Invariant kAccess failed" );
+            // older is one that created earlier
+            return one.kAccess_ < two.kAccess_;
+        }
+        // inf in two, !inf in one. two is older.   
+        return false;
+    } else if( two.kAccess_.has_value() ) {
+        // inf in one, !inf at two. one is older  
+        return true;
     }
+
+    // inf here, inf there, mru
+    BUSTUB_ASSERT( one.lAccess_ != two.lAccess_, "Invariant lAccess failed" );
+    return one.lAccess_ < two.lAccess_;
 }
 
-bool LRUKReplacer::EvictedAge::operator<( const LRUKReplacer::EvictedAge& other) const
+// this < other means. 
+bool LRUKAge::operator<( const LRUKAge& other) const
 {
-    if ( kAccess_.has_value() ) {
-        if ( other.kAccess_.has_value() ) {
-            BUSTUB_ASSERT( kAccess_ != other.kAccess_, "Invariant kAccess failed" );
-            return kAccess_ < other.kAccess_;
-        }
-        // inf in other, not inf here  
-        return true;
-    } else if(  other.kAccess_.has_value() ) {
-        // inf here, not inf there 
-        return false;
-    }
-    // inf here, inf there, mru
-    BUSTUB_ASSERT( lAccess_ != other.lAccess_, "Invariant lAccess failed" );
-    return lAccess_ > other.lAccess_;
+    return older(other, *this);
 }
 
 /**
@@ -149,7 +148,9 @@ void LRUKReplacer::SetEvictable( frame_id_t frame_id, bool set_evictable)
 {
     // find what to check  
     auto pos = node_store_.find(frame_id);
-    BUSTUB_ASSERT( pos != node_store_.end(), "frame to evict is not registered");
+    if( pos == node_store_.end()) {
+        return;
+    }
 
     //  check if state is not changed
     if ( pos->second.is_evictable_ == set_evictable ) {
@@ -220,8 +221,10 @@ void LRUKReplacer::removeEvictable( frame_id_t fid )
 void LRUKReplacer::addEvictable( const LRUKNode& node )
 {
     BUSTUB_ASSERT( node.is_evictable_, "no message");
-    evictable.emplace_back( node, k_ );
-    std::make_heap( evictable.begin(), evictable.end() );
+
+    LRUKAge to{ node.fid_, node.history_.front(),( node.hCount_ < k_) ? std::nullopt : std::optional<size_t>(node.history_.back()) };
+    evictable.push_back( to );
+    std::push_heap( evictable.begin(), evictable.end() );
     BUSTUB_ASSERT( std::is_heap(evictable.begin(), evictable.end()), "heap check" );
 }
 

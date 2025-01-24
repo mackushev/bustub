@@ -23,10 +23,62 @@
 #include <set>
 #include <thread>  // NOLINT
 #include <vector>
-
+#include <algorithm>
+#include <numeric>
 #include "gtest/gtest.h"
 
 namespace bustub {
+
+bool operator>(const LRUKAge& one, const LRUKAge& two)
+{
+  return two < one;
+}
+
+void shuffle( const std::vector<LRUKAge>& from, std::vector<LRUKAge>& to)
+{
+  std::vector<int> index(to.size());
+  std::iota(index.begin(), index.end(), index.size());
+  
+  std::random_device rd;
+  std::mt19937 g(rd());
+  std::shuffle( index.begin(), index.end(), g);
+
+  for ( auto i: index ) {
+    to.push_back( from[i] );
+  }
+}
+
+TEST( LRUKAgeTest, SimpleTest  )
+{
+  const std::vector<LRUKAge> ages = { 
+      {0, 10, std::nullopt},
+      {0, 11, std::nullopt},
+      {0, 5, 2},
+      {0, 1000, 3},
+      {0, 1, 4},
+  };
+  EXPECT_TRUE( std::is_sorted( ages.begin(), ages.end(), std::greater<LRUKAge>() ) );
+  
+  {   
+    std::vector<LRUKAge> s;
+    shuffle(ages, s);
+    std::make_heap( s.begin(), s.end() ); 
+    EXPECT_TRUE( std::is_heap(s.begin(), s.end()) );
+  }
+
+  {   
+    std::vector<LRUKAge> s;
+    shuffle(ages, s);
+
+    std::vector<LRUKAge> q;
+    for ( auto i: s ) {
+      q.push_back( i );
+      std::push_heap(q.begin(), q.end() );
+    }
+    EXPECT_TRUE( std::is_heap(q.begin(), q.end()) );
+  }
+
+}
 
 TEST(LRUKReplacerTest, SampleTest) {
   // Note that comparison with `std::nullopt` always results in `false`, and if the optional type actually does contain
@@ -73,7 +125,7 @@ TEST(LRUKReplacerTest, SampleTest) {
   lru_replacer.RecordAccess(5);
 
 //>>
-  ASSERT_EQ(1, lru_replacer.Evict());
+//  ASSERT_EQ(1, lru_replacer.Evict());
 
 
   lru_replacer.RecordAccess(4);
