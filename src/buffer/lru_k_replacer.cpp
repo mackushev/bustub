@@ -65,16 +65,29 @@ LRUKReplacer::LRUKReplacer(size_t num_frames, size_t k) : replacer_size_(num_fra
  * @return true if a frame is evicted successfully, false if no frames can be evicted.
  */
 auto LRUKReplacer::Evict() -> std::optional<frame_id_t>
-{ 
+{
+    std::scoped_lock lock(latch_store_, latch_evictable_);
+
     // check if we have smth to evict
-    if ( evictable.empty() ) {
+    if ( evictable_.empty() ) {
         return std::nullopt;
+    }
+
+    if ( update_eviction_.size() > 0 ) {
+        std::for_each( evictable_.begin(), evictable_.end(), [&upd_set=update_eviction_](LRUKAge& a){ 
+            auto update = upd_set.find(a.fid_);
+            if ( update != upd_set.end() ) {
+                a = update->second;
+            }
+        });
+        update_eviction_.clear();
+        std::make_heap( evictable_.begin(), evictable_.end() );
     }
     
     // extract pretendent from evictable queue
-    std::pop_heap( evictable.begin(), evictable.end() );
-    const auto to_evict = evictable.back();
-    evictable.pop_back();
+    std::pop_heap( evictable_.begin(), evictable_.end() );
+    const auto to_evict = evictable_.back();
+    evictable_.pop_back();
     
     // extract from node store
     node_store_.erase( to_evict.fid_ );
@@ -99,34 +112,33 @@ void LRUKReplacer::RecordAccess(frame_id_t frame_id, [[maybe_unused]] AccessType
     // 0! increase time  
     const int accessTime = current_timestamp_.fetch_add( 1 ); 
 
+    std::lock_guard store_guard( latch_store_ );
+
     // try to add new frame  
     auto [i, iniserted] = node_store_.emplace( frame_id, LRUKNode(frame_id, accessTime) );
     
     // if already existed - add access history (and check if its not evictable)
     if ( not iniserted ) {
-        
+
         // register new access
         i->second.history_.push_front( accessTime );
-
         if( i->second.hCount_ >= k_ ) {
             i->second.history_.pop_back();
         } else {
             i->second.hCount_ += 1;
         }
 
-        //  if frame is in evictable list - need to be repositioned 
+        //  if frame is in evictable list - need to be repositioned on Eviction
         if ( i->second.is_evictable_ ) {
-            removeEvictable( i->second.fid_ );
-            addEvictable( i->second );
-        }   
+            on_updatedEvictable( i->second );
+        }
     }
-
 }
 
 /**
  * TODO(P1): Add implementation
  *
- * @brief Toggle whether a frame is evictable or non-evictable. This function also
+ * @brief Toggle whether a frame is evictable or non-evictable_. This function also
  * controls replacer's size. Note that size is equal to number of evictable entries.
  *
  * If a frame was previously evictable and is to be set to non-evictable, then size should
@@ -142,6 +154,8 @@ void LRUKReplacer::RecordAccess(frame_id_t frame_id, [[maybe_unused]] AccessType
  */
 void LRUKReplacer::SetEvictable( frame_id_t frame_id, bool set_evictable)
 {
+    std::lock_guard lock(latch_store_);
+
     // find what to check  
     auto pos = node_store_.find(frame_id);
     // just ignore not accesses pages 
@@ -153,17 +167,8 @@ void LRUKReplacer::SetEvictable( frame_id_t frame_id, bool set_evictable)
     if ( pos->second.is_evictable_ == set_evictable ) {
         return;
     }
-
-    if ( set_evictable ) {
-        // need to add to evictable heap. 
-        pos->second.is_evictable_ = true;
-        addEvictable( pos->second );
-    } else {
-        // need to remove from evictable heap.
-        pos->second.is_evictable_ = false;
-        removeEvictable( pos->second.fid_ );
-    }
-
+    pos->second.is_evictable_ = set_evictable;
+    pos->second.is_evictable_ ? addEvictable( pos->second ) : removeEvictable ( pos->second.fid_ );
 }
 
 /**
@@ -185,6 +190,8 @@ void LRUKReplacer::SetEvictable( frame_id_t frame_id, bool set_evictable)
  */
 void LRUKReplacer::Remove(frame_id_t frame_id)
 {
+    std::lock_guard giard( latch_store_ );
+
     auto pos = node_store_.find(frame_id);
     BUSTUB_ASSERT( pos != node_store_.end(), "frame to evict is not registered");
     if ( pos->second.is_evictable_ ) {
@@ -202,27 +209,42 @@ void LRUKReplacer::Remove(frame_id_t frame_id)
  */
 auto LRUKReplacer::Size() -> size_t 
 {
-    return evictable.size();    
+    std::lock_guard lock( latch_evictable_ );
+    return evictable_.size();    
 }
 
 void LRUKReplacer::removeEvictable( frame_id_t fid )
 {
-    auto at = std::find_if( evictable.begin(), evictable.end(), [&fid](const auto& i) { return i.fid_ == fid; });
-    *at = evictable.back();
-    evictable.pop_back();
-    if ( !evictable.empty() ) {
-        std::make_heap( evictable.begin(), evictable.end() );
+    std::lock_guard lock( latch_evictable_ );
+
+    update_eviction_.erase( fid );
+
+    auto at = std::find_if( evictable_.begin(), evictable_.end(), [&fid](const auto& i) { return i.fid_ == fid; });
+    *at = evictable_.back();
+    evictable_.pop_back();
+    if ( !evictable_.empty() ) {
+        std::make_heap( evictable_.begin(), evictable_.end() );
     }
 }
 
 void LRUKReplacer::addEvictable( const LRUKNode& node )
 {
-    BUSTUB_ASSERT( node.is_evictable_, "no message");
+    std::lock_guard lock( latch_evictable_ );
 
-    LRUKAge to{ node.fid_, node.history_.front(),( node.hCount_ < k_) ? std::nullopt : std::optional<size_t>(node.history_.back()) };
-    evictable.push_back( to );
-    std::push_heap( evictable.begin(), evictable.end() );
-    BUSTUB_ASSERT( std::is_heap(evictable.begin(), evictable.end()), "heap check" );
+    BUSTUB_ASSERT( node.is_evictable_, "no message");
+    evictable_.push_back( fromNode(node) );
+    std::push_heap( evictable_.begin(), evictable_.end() );
+    BUSTUB_ASSERT( std::is_heap(evictable_.begin(), evictable_.end()), "heap check" );
+}
+
+LRUKAge LRUKReplacer::fromNode( const LRUKNode& node)
+{
+    return LRUKAge{ node.fid_, node.history_.front(),( node.hCount_ < k_) ? std::nullopt : std::optional<size_t>(node.history_.back()) };
+}
+
+void LRUKReplacer::on_updatedEvictable( const LRUKNode& node )
+{
+    update_eviction_.emplace( node.fid_, fromNode( node ) );
 }
 
 }  // namespace bustub

@@ -192,37 +192,18 @@ TEST(LRUKReplacerTest, SampleTest) {
   lru_replacer.SetEvictable(6, true);
 }
 
-class randomizer {
-  public:
-  randomizer(int n) : 
-    gen(  rd() ),
-    distrib(0, n-1)
-  {
-
-  }
-
-  int generate() {
-    return distrib(gen);
-  }
-
-  private:
-  std::random_device rd;  
-  std::mt19937 gen;
-  std::uniform_int_distribution<> distrib;
-
-};
 
 TEST( LRUKReplacerTest, ParallelTest )
 {
   constexpr auto maxCount = 100;
-  LRUKReplacer lru_replacer(maxCount, 5);
-  randomizer r( maxCount );
+  LRUKReplacer lru_replacer(maxCount, 2);
+  testing::randomizer r( maxCount );
 
   testing::TestParallelExecutor executor;
   executor.AddTest( 
   [&r, &lru_replacer]
     { 
-      lru_replacer.RecordAccess( r.generate() );
+      lru_replacer.RecordAccess( r.random() );
     }, 
   100 );
   executor.AddTest( 
@@ -230,21 +211,23 @@ TEST( LRUKReplacerTest, ParallelTest )
     { 
       lru_replacer.Evict(  );
     }, 
-  1 );
+  10 );
   executor.AddTest( 
   [&r, &lru_replacer]
     { 
-      lru_replacer.SetEvictable( r.generate(), true);
+      lru_replacer.SetEvictable( r.random(), true);
     }, 
-  5 );
+  50 );
   executor.AddTest( 
   [&r, &lru_replacer]
     { 
-      lru_replacer.SetEvictable( r.generate(), false);
+      lru_replacer.SetEvictable( r.random(), false);
     }, 
-  5 );
+  50 );
 
-  EXPECT_TRUE( executor.Run( 5s ) );
+  EXPECT_TRUE( executor.Run( 1s ) );
+
+  std::cout << "Counter: " << executor.Count() << "\n";
 
 }
 

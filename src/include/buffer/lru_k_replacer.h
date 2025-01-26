@@ -18,6 +18,7 @@
 #include <atomic>
 #include <optional>
 #include <unordered_map>
+#include <unordered_set>
 #include <vector>
 #include <queue>
 
@@ -64,7 +65,7 @@ struct LRUKAge {
  * +inf as its backward k-distance. When multiple frames have +inf backward k-distance,
  * classical LRU algorithm is used to choose victim.
  */
-class LRUKReplacer {
+class   LRUKReplacer {
  public:
   LRUKReplacer(size_t num_frames, size_t k);
 
@@ -91,19 +92,26 @@ class LRUKReplacer {
 
   [[maybe_unused]] size_t curr_size_{0};
   [[maybe_unused]] size_t replacer_size_{0};
-  [[maybe_unused]] std::mutex latch_;
-
+  
   // history size
   const size_t k_;
   // current timestamp,  
   std::atomic<size_t> current_timestamp_{0};
+
+  // lock 
+  std::mutex latch_store_;
+  std::mutex latch_evictable_;
   // stores all not removed or evicted nodes info (with history)
   std::unordered_map<frame_id_t, LRUKNode> node_store_;
+
   // Evicted heap
-  std::vector< LRUKAge > evictable;
+  std::unordered_map<frame_id_t, LRUKAge> update_eviction_;
+  std::vector<LRUKAge> evictable_;
 
   void removeEvictable( frame_id_t node );
   void addEvictable( const LRUKNode& node );
+  void on_updatedEvictable( const LRUKNode& node );
+  LRUKAge fromNode( const LRUKNode& node);
 };
 
 }  // namespace bustub
