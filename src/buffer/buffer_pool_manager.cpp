@@ -28,14 +28,24 @@ FrameHeader::FrameHeader(frame_id_t frame_id) : frame_id_(frame_id), data_(BUSTU
  *
  * @return const char* A pointer to immutable data that the frame stores.
  */
-auto FrameHeader::GetData() const -> const char * { return data_.data(); }
+auto FrameHeader::GetData() const -> const char * 
+{
+  BUSTUB_ASSERT( pin_count_.load() > 0, "Read access on unlocked");
+  return data_.data();
+}
 
 /**
  * @brief Get a raw mutable pointer to the frame's data.
  *
  * @return char* A pointer to mutable data that the frame stores.
  */
-auto FrameHeader::GetDataMut() -> char * { return data_.data(); }
+auto FrameHeader::GetDataMut() -> char * 
+{
+  BUSTUB_ASSERT( pin_count_.load() > 0, "Write access on unlocked");
+  BUSTUB_ASSERT(is_locked_by_writer, "Non write access" );
+  is_dirty_ = true;
+  return data_.data();
+}
 
 /**
  * @brief Resets a `FrameHeader`'s member fields.
@@ -44,6 +54,7 @@ void FrameHeader::Reset() {
   std::fill(data_.begin(), data_.end(), 0);
   pin_count_.store(0);
   is_dirty_ = false;
+  is_locked_by_writer = false;
 }
 
 /**
@@ -122,7 +133,10 @@ auto BufferPoolManager::Size() const -> size_t { return num_frames_; }
  *
  * @return The page ID of the newly allocated page.
  */
-auto BufferPoolManager::NewPage() -> page_id_t { UNIMPLEMENTED("TODO(P1): Add implementation."); }
+auto BufferPoolManager::NewPage() -> page_id_t 
+{
+  return next_page_id_.fetch_add( 1 );  
+}
 
 /**
  * @brief Removes a page from the database, both on disk and in memory.
@@ -191,8 +205,9 @@ auto BufferPoolManager::DeletePage(page_id_t page_id) -> bool { UNIMPLEMENTED("T
  * @return std::optional<WritePageGuard> An optional latch guard where if there are no more free frames (out of memory)
  * returns `std::nullopt`, otherwise returns a `WritePageGuard` ensuring exclusive and mutable access to a page's data.
  */
-auto BufferPoolManager::CheckedWritePage(page_id_t page_id, AccessType access_type) -> std::optional<WritePageGuard> {
-  UNIMPLEMENTED("TODO(P1): Add implementation.");
+auto BufferPoolManager::CheckedWritePage(page_id_t page_id, AccessType access_type) -> std::optional<WritePageGuard>
+{
+  throw NotImplementedException("");
 }
 
 /**
@@ -219,8 +234,15 @@ auto BufferPoolManager::CheckedWritePage(page_id_t page_id, AccessType access_ty
  * @return std::optional<ReadPageGuard> An optional latch guard where if there are no more free frames (out of memory)
  * returns `std::nullopt`, otherwise returns a `ReadPageGuard` ensuring shared and read-only access to a page's data.
  */
-auto BufferPoolManager::CheckedReadPage(page_id_t page_id, AccessType access_type) -> std::optional<ReadPageGuard> {
-  UNIMPLEMENTED("TODO(P1): Add implementation.");
+auto BufferPoolManager::CheckedReadPage(page_id_t page_id, AccessType access_type) -> std::optional<ReadPageGuard>
+{
+  
+  auto frame = acuireFrame( page_id );
+  if ( not frame ) {
+
+  }
+
+  throw NotImplementedException("");
 }
 
 /**
@@ -237,9 +259,10 @@ auto BufferPoolManager::CheckedReadPage(page_id_t page_id, AccessType access_typ
  * @param access_type The type of page access.
  * @return WritePageGuard A page guard ensuring exclusive and mutable access to a page's data.
  */
-auto BufferPoolManager::WritePage(page_id_t page_id, AccessType access_type) -> WritePageGuard {
-  auto guard_opt = CheckedWritePage(page_id, access_type);
+auto BufferPoolManager::WritePage(page_id_t page_id, AccessType access_type) -> WritePageGuard
+{
 
+  auto guard_opt = CheckedWritePage(page_id, access_type);
   if (!guard_opt.has_value()) {
     fmt::println(stderr, "\n`CheckedWritePage` failed to bring in page {}\n", page_id);
     std::abort();
@@ -262,9 +285,9 @@ auto BufferPoolManager::WritePage(page_id_t page_id, AccessType access_type) -> 
  * @param access_type The type of page access.
  * @return ReadPageGuard A page guard ensuring shared and read-only access to a page's data.
  */
-auto BufferPoolManager::ReadPage(page_id_t page_id, AccessType access_type) -> ReadPageGuard {
+auto BufferPoolManager::ReadPage(page_id_t page_id, AccessType access_type) -> ReadPageGuard
+{
   auto guard_opt = CheckedReadPage(page_id, access_type);
-
   if (!guard_opt.has_value()) {
     fmt::println(stderr, "\n`CheckedReadPage` failed to bring in page {}\n", page_id);
     std::abort();
@@ -367,8 +390,40 @@ void BufferPoolManager::FlushAllPages() { UNIMPLEMENTED("TODO(P1): Add implement
  * @param page_id The page ID of the page we want to get the pin count of.
  * @return std::optional<size_t> The pin count if the page exists, otherwise `std::nullopt`.
  */
-auto BufferPoolManager::GetPinCount(page_id_t page_id) -> std::optional<size_t> {
-  UNIMPLEMENTED("TODO(P1): Add implementation.");
+auto BufferPoolManager::GetPinCount(page_id_t page_id) -> std::optional<size_t> 
+{
+  std::unique_lock lock( *bpm_latch_ );
+  const auto fid = page_table_.find(page_id);
+  if ( fid == page_table_.end() ) {
+    return std::nullopt;
+  }
+  return frames_[fid->second]->pin_count_.load();
+}
+
+// 
+std::shared_ptr<FrameHeader> BufferPoolManager::acuireFrame( page_id_t pid )
+{
+  // Блокировка на время операций над списком фреймов и списком свободных слотов. 
+  std::scoped_lock lock( bpm_latch_ ); 
+
+  // Поиск уже назначенного фрейма. 
+  const auto pd = page_table_.find( pid );
+  if ( pd != page_table_.end() ) {
+    return frames_.at(pd->second);
+  }
+
+  // фрейм не найден, ищем есть ли свободный. 
+  // Найти свободный фрейм если таковой есть, захватить и вернуть в незагруженном сотоянии   
+  if ( !free_frames_.empty() ) {
+    auto result = frames_[ static_cast<size_t>( free_frames_.front()) ];
+    free_frames_.pop_front();
+    // register free frame as non-free
+    page_table_[ result->frame_id_ ] = pid;
+    return result;
+  }
+
+  return std::nullopt;
 }
 
 }  // namespace bustub
+ 

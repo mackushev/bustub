@@ -71,15 +71,19 @@ class FrameHeader {
 
   /** @brief The frame ID / index of the frame this header represents. */
   const frame_id_t frame_id_;
+  std::optional<page_id_t> page_id_; // page_id (if synced with disc initially)
 
   /** @brief The readers / writer latch for this frame. */
   std::shared_mutex rwlatch_;
+  std::condition_variable read_cv_;
+  std::condition_variable write_cv_;
 
   /** @brief The number of pins on this frame keeping the page in memory. */
   std::atomic<size_t> pin_count_;
 
   /** @brief The dirty flag. */
   bool is_dirty_;
+  bool is_locked_by_writer{false}; 
 
   /**
    * @brief A pointer to the data of the page that this frame holds.
@@ -116,15 +120,18 @@ class BufferPoolManager {
   auto Size() const -> size_t;
   auto NewPage() -> page_id_t;
   auto DeletePage(page_id_t page_id) -> bool;
+  
   auto CheckedWritePage(page_id_t page_id, AccessType access_type = AccessType::Unknown)
       -> std::optional<WritePageGuard>;
   auto CheckedReadPage(page_id_t page_id, AccessType access_type = AccessType::Unknown) -> std::optional<ReadPageGuard>;
   auto WritePage(page_id_t page_id, AccessType access_type = AccessType::Unknown) -> WritePageGuard;
   auto ReadPage(page_id_t page_id, AccessType access_type = AccessType::Unknown) -> ReadPageGuard;
+
   auto FlushPageUnsafe(page_id_t page_id) -> bool;
   auto FlushPage(page_id_t page_id) -> bool;
   void FlushAllPagesUnsafe();
   void FlushAllPages();
+  
   auto GetPinCount(page_id_t page_id) -> std::optional<size_t>;
 
  private:
@@ -136,8 +143,8 @@ class BufferPoolManager {
 
   /**
    * @brief The latch protecting the buffer pool's inner data structures.
-   *
-   * TODO(P1) We recommend replacing this comment with details about what this latch actually protects.
+   * protect frames_
+   * free_frames 
    */
   std::shared_ptr<std::mutex> bpm_latch_;
 
@@ -172,5 +179,14 @@ class BufferPoolManager {
    * stored inside of it. Additionally, you may also want to implement a helper function that returns either a shared
    * pointer to a `FrameHeader` that already has a page's data stored inside of it, or an index to said `FrameHeader`.
    */
+
+  // get frame for page, if return - frame is allocated and assigned to the page
+  // frame could be returned un-initialized data should be downloaded then, but under page lock.  
+  std::shared_ptr<FrameHeader> acuireFrame( page_id_t pid );
+  
+  // get frame for page by lock, of not do loop, evict + acuire until there is no frames to evict 
+  // 
+  bool tryEvict( );
+
 };
 }  // namespace bustub

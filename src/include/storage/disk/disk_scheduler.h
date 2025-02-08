@@ -78,6 +78,7 @@ class DiskScheduler {
    */
   void DeallocatePage(page_id_t page_id) { disk_manager_->DeletePage(page_id); }
 
+
  private:
   /** Pointer to the disk manager. */
   DiskManager *disk_manager_;
